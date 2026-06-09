@@ -1868,6 +1868,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return;
       }
 
+      case "TOGGLE_PIN": {
+        const entry = state.transcript.find((t) => t.id === message.entryId);
+        if (entry) {
+          entry.pinned = message.isPinned;
+          await saveCurrentTabState();
+          await broadcastStateUpdate(true);
+        }
+        sendResponse({ success: true });
+        return;
+      }
+
       case "OPEN_SIDE_PANEL": {
         const callerTabId = sender?.tab?.id;
         if (callerTabId) {
