@@ -587,7 +587,12 @@ void initTheme().catch((err) => console.error(err));
     }
   });
 
-  observer.observe(document.body, { childList: true, subtree: true });
+  function startFloatingButtonObserver() {
+    if (document.getElementById("mc-float-btn")) return;
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+
+  startFloatingButtonObserver();
 
   function cleanUp() {
     console.log(`${COPILOT_PREFIX} Disconnecting observers and clearing active timers.`);
@@ -606,7 +611,10 @@ void initTheme().catch((err) => console.error(err));
       activeSpeakerObserver.disconnect();
       activeSpeakerObserver = null;
     }
+  }
 
+  function destroyAll() {
+    cleanUp();
     if (observer) {
       observer.disconnect();
     }
@@ -616,7 +624,7 @@ void initTheme().catch((err) => console.error(err));
   // A single consolidated handler ensures SAVE_SESSION is dispatched *before*
   // cleanUp() tears down observers and timers (fixes #555 — two separate
   // listeners would always run cleanUp first due to registration order).
-  window.addEventListener("beforeunload", () => {
+  globalThis.addEventListener("beforeunload", () => {
     // 1. Attempt auto-save first, while the runtime is still reachable.
     try {
       chrome.runtime
@@ -626,7 +634,7 @@ void initTheme().catch((err) => console.error(err));
       // Ignore — page is already unloading
     }
     // 2. Tear down observers and timers after save is dispatched.
-    cleanUp();
+    destroyAll();
   });
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") {
@@ -636,6 +644,11 @@ void initTheme().catch((err) => console.error(err));
       // Re-initialize observation when resuming visibility
       startParticipantPolling();
       startActiveSpeakerDetection();
+      if (globalThis.location.pathname.length > 5 && !globalThis.location.pathname.includes("/_")) {
+        injectFloatingButton();
+      } else {
+        startFloatingButtonObserver();
+      }
     }
   });
 
@@ -689,7 +702,7 @@ void initTheme().catch((err) => console.error(err));
 
   startParticipantPolling();
   startActiveSpeakerDetection();
-  if (window.location.pathname.length > 5 && !window.location.pathname.includes("/_")) {
+  if (globalThis.location.pathname.length > 5 && !globalThis.location.pathname.includes("/_")) {
     injectFloatingButton();
   }
 })();

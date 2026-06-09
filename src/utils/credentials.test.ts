@@ -1,4 +1,4 @@
-import test from "node:test";
+import test, { after } from "node:test";
 import assert from "node:assert/strict";
 
 import {
@@ -14,8 +14,21 @@ import {
 type StorageArea = Record<string, unknown>;
 
 function setupChromeStorage(sessionInitial: StorageArea = {}, localInitial: StorageArea = {}) {
-  const session = sessionInitial;
-  const local = localInitial;
+  // Ensure basic mock exists so lockCredentials can run without ReferenceError
+  if (!(globalThis as any).chrome) {
+    (globalThis as any).chrome = {
+      storage: {
+        session: {
+          async remove() {},
+        },
+      },
+    };
+  }
+
+  lockCredentials();
+
+  const session: StorageArea = sessionInitial;
+  const local: StorageArea = localInitial;
 
   function createStorageArea(store: StorageArea) {
     return {
@@ -247,4 +260,8 @@ test("saving partial credentials does not wipe out omitted keys", async () => {
   });
   assert.equal(local.elevenlabs_api_key, "existing-eleven");
   assert.ok((local.openai_api_key as string).startsWith("enc:"));
+});
+
+after(() => {
+  lockCredentials();
 });

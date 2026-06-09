@@ -12,6 +12,7 @@ import { initTheme } from "./theme.js";
 import { resolveManualMeetTab } from "./meetingTabs";
 import { startDashboardAudioCapture } from "./dashboardCapture";
 import { escapeHtml, formatDuration, sanitizeTopicStatus } from "./utils/domHelpers";
+import { sanitizeDataAttr } from "./utils/sanitize";
 
 initTheme();
 
@@ -662,25 +663,91 @@ document.addEventListener("DOMContentLoaded", async () => {
       container.innerHTML = getEmptyStateHTML("No decisions detected yet");
       return;
     }
-    container.innerHTML = decisions
-      .map((d) => {
-        const label = escapeHtml(d.timestampLabel || d.timestamp || "00:00");
-        const timestampChunk = d.chunkId
-          ? `<button type="button" class="timestamp-link" data-chunk-id="${escapeHtml(
-              d.chunkId,
-            )}" aria-label="Jump to transcript at ${label}">${label}</button>`
-          : d.timestamp
-            ? ` <span class="timestamp-text">${escapeHtml(d.timestamp)}</span>`
-            : "";
+    container.innerHTML = "";
+    decisions.forEach((d) => {
+      const wrapper = document.createElement("div");
+      wrapper.className = "decision-item";
 
-        return `
-      <div class="decision-item">
-        <div class="decision-text">${escapeHtml(d.text || "")} ${d.classification === "tentative" ? '<span style="font-size: 11px; background: #FEF3C7; color: #D97706; padding: 2px 6px; border-radius: 4px; margin-left: 6px;">Tentative</span>' : ""}</div>
-        <div class="decision-meta">${d.by ? `By ${escapeHtml(d.by)}` : ""}${timestampChunk ? ` • ${timestampChunk}` : ""}</div>
-      </div>
-    `;
-      })
-      .join("");
+      const contentDiv = document.createElement("div");
+      contentDiv.className = "decision-content";
+
+      const textDiv = document.createElement("div");
+      textDiv.className = "decision-text";
+      textDiv.textContent = d.text || "";
+      if (d.classification === "tentative") {
+        const tentativeSpan = document.createElement("span");
+        tentativeSpan.style.cssText =
+          "font-size: 11px; background: #FEF3C7; color: #D97706; padding: 2px 6px; border-radius: 4px; margin-left: 6px;";
+        tentativeSpan.textContent = "Tentative";
+        textDiv.appendChild(tentativeSpan);
+      }
+      contentDiv.appendChild(textDiv);
+
+      const metaDiv = document.createElement("div");
+      metaDiv.className = "decision-meta";
+
+      const metaParts: string[] = [];
+      if (d.by) {
+        metaParts.push(`By ${d.by}`);
+      }
+      metaDiv.textContent = metaParts.join(" • ");
+
+      const label = d.timestampLabel || d.timestamp || "00:00";
+      const chunkId = d.chunkId;
+      if (chunkId) {
+        if (metaParts.length > 0) {
+          metaDiv.appendChild(document.createTextNode(" • "));
+        }
+        const timestampButton = document.createElement("button");
+        timestampButton.type = "button";
+        timestampButton.className = "timestamp-link";
+        timestampButton.textContent = label;
+        timestampButton.setAttribute("aria-label", `Jump to transcript at ${label}`);
+        timestampButton.dataset.chunkId = chunkId;
+        timestampButton.dataset.hasListener = "true";
+        timestampButton.addEventListener("click", () => navigateToTranscriptChunk(chunkId));
+        timestampButton.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            navigateToTranscriptChunk(chunkId);
+          }
+        });
+        metaDiv.appendChild(timestampButton);
+      } else if (d.timestamp) {
+        if (metaParts.length > 0) {
+          metaDiv.appendChild(document.createTextNode(" • "));
+        }
+        const timestampSpan = document.createElement("span");
+        timestampSpan.className = "timestamp-text";
+        timestampSpan.textContent = d.timestamp;
+        metaDiv.appendChild(timestampSpan);
+      }
+      contentDiv.appendChild(metaDiv);
+
+      const copyBtn = document.createElement("button");
+      copyBtn.type = "button";
+      copyBtn.className = "copy-btn";
+      copyBtn.setAttribute("aria-label", "Copy decision to clipboard");
+      copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>`;
+      copyBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        let copyText = `${d.text || ""}`;
+        if (d.by) {
+          copyText += ` - Announced by: ${d.by}`;
+        }
+        navigator.clipboard
+          .writeText(copyText)
+          .then(() => showToast("Copied to clipboard!", "success"))
+          .catch((err) => {
+            console.error("Failed to copy decision: ", err);
+            showToast("Failed to copy!", "error");
+          });
+      });
+
+      wrapper.appendChild(contentDiv);
+      wrapper.appendChild(copyBtn);
+      container.appendChild(wrapper);
+    });
   }
 
   // ——— Action Items ———
@@ -761,9 +828,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         timestampButton.className = "timestamp-link";
         timestampButton.textContent = timestampLabel;
         timestampButton.setAttribute("aria-label", `Jump to transcript at ${timestampLabel}`);
-        if (a.chunkId) {
-          timestampButton.dataset.chunkId = a.chunkId;
+        const chunkId = a.chunkId;
+        if (chunkId) {
+          timestampButton.dataset.chunkId = chunkId;
           timestampButton.dataset.hasListener = "true";
+          timestampButton.addEventListener("click", () => navigateToTranscriptChunk(chunkId));
+          timestampButton.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              navigateToTranscriptChunk(chunkId);
+            }
+          });
         } else {
           timestampButton.disabled = true;
           timestampButton.classList.add("timestamp-text");
@@ -782,8 +857,33 @@ document.addEventListener("DOMContentLoaded", async () => {
         taskDiv.classList.toggle("action-task--done", isDone);
       });
 
+      const copyBtn = document.createElement("button");
+      copyBtn.type = "button";
+      copyBtn.className = "copy-btn";
+      copyBtn.setAttribute("aria-label", "Copy action item to clipboard");
+      copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>`;
+      copyBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const checkMark = checkbox.checked ? "[x]" : "[ ]";
+        let copyText = `${checkMark} ${task}`;
+        if (owner) {
+          copyText += ` - Assignee: ${owner}`;
+        }
+        if (deadline) {
+          copyText += ` (Due: ${deadline})`;
+        }
+        navigator.clipboard
+          .writeText(copyText)
+          .then(() => showToast("Copied to clipboard!", "success"))
+          .catch((err) => {
+            console.error("Failed to copy action item: ", err);
+            showToast("Failed to copy!", "error");
+          });
+      });
+
       wrapper.appendChild(checkbox);
       wrapper.appendChild(label);
+      wrapper.appendChild(copyBtn);
       container.appendChild(wrapper);
     });
   }
@@ -1381,20 +1481,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
       }
       const markdown = generateMarkdown(state);
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(markdown);
-      } else {
-        const textArea = document.createElement("textarea");
-        textArea.value = markdown;
-        textArea.style.position = "fixed";
-        textArea.style.left = "-999999px";
-        textArea.style.top = "-999999px";
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-        document.execCommand("copy");
-        textArea.remove();
-      }
+      await navigator.clipboard.writeText(markdown);
       showToast("Copied to clipboard", "success");
     } catch (err) {
       console.error(err);
@@ -1470,7 +1557,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           const actionCount = s.actionItems?.length || 0;
 
           return `
-          <div class="session-item" data-session-id="${s.id}">
+          <div class="session-item" data-session-id="${sanitizeDataAttr(s.id)}">
             <div class="session-item-header">
               <div>
                 <div class="session-item-date">${escapeHtml(date)} at ${escapeHtml(time)}</div>
@@ -1487,15 +1574,15 @@ document.addEventListener("DOMContentLoaded", async () => {
               <span>${actionCount} actions</span>
             </div>
             <div class="session-item-actions">
-              <button class="session-export-btn" data-session-id="${s.id}" title="Export as Markdown">
+              <button class="session-export-btn" data-session-id="${sanitizeDataAttr(s.id)}" title="Export as Markdown">
                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" x2="12" y1="15" y2="3"></line></svg>
                 Export
               </button>
-              <button class="session-export-btn session-download-btn" data-session-id="${s.id}" title="Download as Markdown File">
+              <button class="session-export-btn session-download-btn" data-session-id="${sanitizeDataAttr(s.id)}" title="Download as Markdown File">
                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" x2="12" y1="15" y2="3"></line></svg>
                 Download
               </button>
-              <button class="session-delete-btn" data-session-id="${s.id}" title="Delete session">
+              <button class="session-delete-btn" data-session-id="${sanitizeDataAttr(s.id)}" title="Delete session">
                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
                 Delete
               </button>
@@ -1876,6 +1963,52 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.querySelector('[data-tab="sessions"]')?.addEventListener("click", loadMeetingHistory);
   // Load history on tab switch
   document.querySelector('[data-tab="history"]')?.addEventListener("click", loadMeetingHistory);
+
+  // ——— Copy Summary Button ———
+  document.getElementById("copy-summary-btn")?.addEventListener("click", async () => {
+    try {
+      const summaryEl = document.getElementById("dash-summary");
+      const text = summaryEl?.textContent?.trim() || "";
+      if (!text || text === "Waiting for conversation to begin...") {
+        showToast("No summary available to copy", "error");
+        return;
+      }
+      await navigator.clipboard.writeText(text);
+      showToast("Summary copied to clipboard!", "success");
+    } catch {
+      showToast("Failed to copy summary", "error");
+    }
+  });
+
+  // ——— Header Export Buttons ———
+  const headerMdBtn = document.getElementById("header-export-md-btn");
+  const headerPdfBtn = document.getElementById("header-export-pdf-btn");
+
+  if (headerMdBtn) {
+    headerMdBtn.addEventListener("click", async () => {
+      try {
+        const state = await chrome.runtime.sendMessage({ type: "GET_STATE" });
+        if (!state) throw new Error("No meeting data available");
+
+        const markdown = generateMarkdown(state);
+        const filename = `meeting-summary-${new Date().toISOString().slice(0, 10)}.md`;
+
+        downloadFile(markdown, filename, "text/markdown");
+        showToast("Downloaded as .md file", "success");
+      } catch (err) {
+        showToast(
+          "Failed to export: " + (err instanceof Error ? err.message : String(err)),
+          "error",
+        );
+      }
+    });
+  }
+
+  if (headerPdfBtn) {
+    headerPdfBtn.addEventListener("click", () => {
+      showToast("PDF UI active! Ready for Phase 2 library integration.", "success");
+    });
+  }
 });
 
 // --- Empty State Utility ---

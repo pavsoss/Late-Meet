@@ -207,4 +207,6 @@ export type RuntimeMessage =
       vadThreshold?: number;
     }
   | { action: "OFFSCREEN_STOP_CAPTURE" }
-  | { action: "PROCESS_AUDIO_CHUNK"; chunk: ArrayBuffer; tabId: number };
+  | { action: "PROCESS_AUDIO_CHUNK"; chunk: ArrayBuffer; tabId: number }
+  | { action: "OFFSCREEN_PING" }
+  | { action: "GET_REMAINING_CHUNKS" };
