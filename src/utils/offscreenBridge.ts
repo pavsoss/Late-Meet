@@ -5,24 +5,17 @@
  * to prevent main thread blocking in the extension popup.
  */
 
-type OffscreenMessage = {
-  type: "PROCESS_AUDIO_CHUNK";
-  chunk: ArrayBuffer;
-  tabId: number;
-};
+import { RuntimeMessage } from "../types";
 
 /** Send an audio chunk to the offscreen document for processing */
-export async function sendChunkToOffscreen(
-  chunk: ArrayBuffer,
-  tabId: number
-): Promise<void> {
+export async function sendChunkToOffscreen(chunk: ArrayBuffer, tabId: number): Promise<void> {
   await ensureOffscreenDocument();
 
   await chrome.runtime.sendMessage({
-    type: "PROCESS_AUDIO_CHUNK",
+    action: "PROCESS_AUDIO_CHUNK",
     chunk,
     tabId,
-  } as OffscreenMessage);
+  } satisfies RuntimeMessage);
 }
 
 /** Ensure the offscreen document exists */

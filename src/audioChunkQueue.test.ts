@@ -126,6 +126,12 @@ test("audio chunk queue continues after onError hook failure", async () => {
   assert.deepEqual(processed, ["next"]);
 });
 
+async function waitForQueue(queue: AudioChunkQueue<any>) {
+  while (queue.isProcessing) {
+    await Promise.resolve();
+  }
+}
+
 test("audio chunk queue processes 1000 chunks in FIFO order", async () => {
   const processed: number[] = [];
 
@@ -141,8 +147,7 @@ test("audio chunk queue processes 1000 chunks in FIFO order", async () => {
     assert.equal(result.accepted, true);
   }
 
-  await waitForDrain();
-  await waitForDrain();
+  await waitForQueue(queue);
 
   assert.equal(processed.length, 1000);
 
@@ -165,8 +170,7 @@ test("audio chunk queue handles large backlog without rejection when capacity al
     assert.equal(queue.enqueue(i).accepted, true);
   }
 
-  await waitForDrain();
-  await waitForDrain();
+  await waitForQueue(queue);
 
   assert.equal(processed.length, 1000);
 });

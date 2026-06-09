@@ -14,9 +14,8 @@ import {
 type StorageArea = Record<string, unknown>;
 
 function setupChromeStorage(sessionInitial: StorageArea = {}, localInitial: StorageArea = {}) {
-  lockCredentials();
-  const session: StorageArea = sessionInitial;
-  const local: StorageArea = localInitial;
+  const session = sessionInitial;
+  const local = localInitial;
 
   function createStorageArea(store: StorageArea) {
     return {
@@ -39,6 +38,19 @@ function setupChromeStorage(sessionInitial: StorageArea = {}, localInitial: Stor
     };
   }
 
+  // 1. Mount a temporary empty chrome mock to satisfy lockCredentials
+  const tempSession: StorageArea = {};
+  (globalThis as any).chrome = {
+    storage: {
+      session: createStorageArea(tempSession),
+      local: createStorageArea({}),
+    },
+  };
+
+  // 2. Lock credentials (resets internal key state and purges tempSession)
+  lockCredentials();
+
+  // 3. Mount actual storage mock using the reference objects passed by the test
   (globalThis as any).chrome = {
     storage: {
       session: createStorageArea(session),

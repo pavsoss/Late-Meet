@@ -124,7 +124,6 @@ export interface StorageStats {
   warningThreshold: number;
 }
 
-
 // ============================================================
 // Storage Types — for type-safe chrome.storage operations
 // ============================================================
@@ -135,22 +134,22 @@ export interface MeetingSession {
   tabId: number;
   meetingUrl: string;
   meetingTitle: string;
-  startTime: number;        // Unix timestamp (ms)
-  endTime: number | null;   // null if recording is still active
+  startTime: number; // Unix timestamp (ms)
+  endTime: number | null; // null if recording is still active
   durationMs: number | null;
   participants: string[];
   transcript: TranscriptEntry[];
   summary: string | null;
-  language: string;         // BCP 47 language tag (e.g., "en-US")
-  schemaVersion: number;    // For migration support
+  language: string; // BCP 47 language tag (e.g., "en-US")
+  schemaVersion: number; // For migration support
 }
 
 /** A single transcript entry with speaker and timestamp */
 export interface TranscriptEntry {
   speaker: string;
   text: string;
-  timestamp: number;        // Offset from meeting start in ms
-  confidence: number;       // 0.0 to 1.0
+  timestamp: number; // Offset from meeting start in ms
+  confidence: number; // 0.0 to 1.0
 }
 
 /** Root schema for chrome.storage.local */
@@ -167,6 +166,45 @@ export interface ExtensionPreferences {
   autoStart: boolean;
   language: string;
   showTranscriptInMeeting: boolean;
-  summaryStyle: 'brief' | 'detailed' | 'bullets';
-  theme: 'light' | 'dark' | 'system';
+  summaryStyle: "brief" | "detailed" | "bullets";
+  theme: "light" | "dark" | "system";
 }
+
+export type RuntimeMessage =
+  | { action: "GET_STATE" }
+  | { action: "OPEN_SIDE_PANEL" }
+  | {
+      action: "MANUAL_START_AUDIO";
+      tabId: number | "current";
+      meetingId?: string;
+      meetingUrl?: string | null;
+      streamId?: string;
+      includeMicrophone?: boolean;
+    }
+  | { action: "MANUAL_STOP_AUDIO" }
+  | { action: "UNEXPECTED_TRACK_END"; reason?: string }
+  | { action: "OFFSCREEN_LOG"; message: string }
+  | { action: "OFFSCREEN_CAPTURE_STOPPED" }
+  | { action: "OFFSCREEN_RESUME_RECORDING" }
+  | { action: "OFFSCREEN_AUDIO_CHUNK"; audioBase64: string; mimeType: string }
+  | { action: "PARTICIPANTS_UPDATED"; participants: string[]; selfName?: string }
+  | { action: "ACTIVE_SPEAKER_CHANGED"; name: string }
+  | { action: "SAVE_SESSION" }
+  | { action: "DISCARD_SESSION" }
+  | { action: "GET_SAVED_SESSIONS" }
+  | { action: "GET_SAVED_SESSION"; sessionId: string }
+  | { action: "DELETE_SAVED_SESSION"; sessionId: string }
+  | { action: "STATE_UPDATE"; state: State | { isActive: boolean; audioActive: boolean } }
+  | { action: "SESSION_ENDED" }
+  | { action: "WAVEFORM_DATA"; buckets: number[] }
+  | { action: "SEND_CHAT_MESSAGE"; text: string }
+  | { action: "SHOW_BRIEF"; briefContent: string; targetName: string }
+  | {
+      action: "OFFSCREEN_START_CAPTURE";
+      streamId: string;
+      tabId: number;
+      includeMicrophone?: boolean;
+      vadThreshold?: number;
+    }
+  | { action: "OFFSCREEN_STOP_CAPTURE" }
+  | { action: "PROCESS_AUDIO_CHUNK"; chunk: ArrayBuffer; tabId: number };
