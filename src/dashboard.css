@@ -1158,7 +1158,10 @@ body::-webkit-scrollbar-thumb,
 
 .pinned-moment-entry:hover {
   border-color: var(--border-sub);
+}
 /* =====================================================
+   RESPONSIVE BREAKPOINTS — Issue `#648`
+   Fix: text overlap, button clipping, header overflow,
    RESPONSIVE BREAKPOINTS — Issue #648
    Fix: text overlap, button clipping, header overflow,
    tabs overflow, stats card squeezing, horizontal scroll
