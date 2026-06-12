@@ -1883,7 +1883,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ success: true });
         return;
       }
-      }
 
       case "OPEN_SIDE_PANEL": {
         const callerTabId = sender?.tab?.id;
