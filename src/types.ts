@@ -13,8 +13,9 @@ export interface TranscriptEntry {
   id?: string;
   speaker: string;
   text: string;
-  timestamp: number;
+  timestamp: number; // Offset from meeting start in ms
   timestampLabel?: string;
+  confidence?: number; // 0.0 to 1.0
 }
 
 /** A timestamped event recorded on the meeting timeline. */
@@ -142,14 +143,6 @@ export interface MeetingSession {
   summary: string | null;
   language: string; // BCP 47 language tag (e.g., "en-US")
   schemaVersion: number; // For migration support
-}
-
-/** A single transcript entry with speaker and timestamp */
-export interface TranscriptEntry {
-  speaker: string;
-  text: string;
-  timestamp: number; // Offset from meeting start in ms
-  confidence: number; // 0.0 to 1.0
 }
 
 /** Root schema for chrome.storage.local */

@@ -1246,17 +1246,15 @@ async function processQueuedAudioChunk({ id, item }: AudioChunkQueueItem<QueuedA
     }
   }
 
-  const chunkTimestampSeconds = Math.max(
-    0,
-    Math.floor((item.receivedAt - (state.startTime || item.receivedAt)) / 1000),
-  );
+  const chunkTimestampMs = Math.max(0, item.receivedAt - (state.startTime || item.receivedAt));
+  const chunkTimestampSeconds = Math.floor(chunkTimestampMs / 1000);
   const chunkId = `chunk_${id}`;
 
   state.transcript.push({
     id: chunkId,
     speaker: resolveTranscriptSpeaker(item.speaker || state.currentSpeaker),
     text: refinedText,
-    timestamp: chunkTimestampSeconds,
+    timestamp: chunkTimestampMs,
     timestampLabel: formatTimestampLabel(chunkTimestampSeconds),
   });
 

@@ -219,6 +219,13 @@ async function postChunk(blob: Blob) {
     } satisfies RuntimeMessage);
 
     if (!response?.success) {
+      if (response?.pauseRecorder && mediaRecorder?.state === "recording") {
+        try {
+          mediaRecorder.pause();
+        } catch (err) {
+          console.warn("[LateMeet][offscreen] Failed to pause recorder:", err);
+        }
+      }
       relay(`chunk rejected by background — ${response?.error || "unknown error"}`);
     }
   } catch (err) {
@@ -699,6 +706,18 @@ chrome.runtime.onMessage.addListener((rawMessage, _sender, sendResponse) => {
         });
       }
 
+      return;
+    }
+
+    if (message.action === "OFFSCREEN_RESUME_RECORDING") {
+      if (mediaRecorder?.state === "paused" && !isStopping) {
+        try {
+          mediaRecorder.resume();
+        } catch (err) {
+          console.warn("[LateMeet][offscreen] Failed to resume recorder:", err);
+        }
+      }
+      sendResponse({ success: true });
       return;
     }
 

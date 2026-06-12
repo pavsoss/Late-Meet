@@ -12,14 +12,6 @@
  */
 
 import { RuntimeMessage } from "../types";
-/** Message payload sent to the offscreen document for audio processing. */
-type OffscreenMessage = {
-  type: "PROCESS_AUDIO_CHUNK";
-  /** Raw audio data to process. */
-  chunk: ArrayBuffer;
-  /** Chrome tab ID that is the audio source, used for per-tab state tracking. */
-  tabId: number;
-};
 
 /**
  * Sends a raw audio chunk to the offscreen document for transcription processing.
